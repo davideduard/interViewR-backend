@@ -1,6 +1,5 @@
 package InterViewR.security;
 
-import org.springframework.context.annotation.ComponentScan;
 import org.springframework.security.core.userdetails.UserDetails;
 
 public interface JwtService {
