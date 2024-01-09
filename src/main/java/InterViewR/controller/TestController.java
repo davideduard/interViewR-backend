@@ -16,7 +16,7 @@ public class TestController  {
     private final AiResponseService aiResponseService;
 
     @PostMapping("/gpt")
-    public ResponseEntity<String> GPTResponse() {
+    public ResponseEntity<String> gptResponse() {
         return ResponseEntity.ok(aiResponseService.getGptResponse(new ArrayList<String>()));
     }
 }
