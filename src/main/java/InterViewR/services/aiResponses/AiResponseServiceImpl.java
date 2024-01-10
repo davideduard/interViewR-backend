@@ -5,8 +5,12 @@ import InterViewR.data.security.UserRepository;
 import InterViewR.domain.aiConversation.Chat;
 import InterViewR.domain.aiConversation.Message;
 import InterViewR.requests.SendMessageRequest;
+import InterViewR.responses.SendMessageResponse;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nimbusds.jose.shaded.gson.JsonElement;
+import com.nimbusds.jose.shaded.gson.JsonObject;
+import com.nimbusds.jose.shaded.gson.JsonParser;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -16,15 +20,12 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
 public class AiResponseServiceImpl implements AiResponseService{
-    private static final String OPENAI_API_ENDPOINT = "https://api.openai.com/v1/engines/davinci-codex/completions";
+    private static final String OPENAI_API_ENDPOINT = "https://api.openai.com/v1/chat/completions";
     private static final String OPENAI_API_KEY = "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"; // Replace with your actual API key
     private final ChatRepository chatRepository;
     private final UserRepository userRepository;
@@ -101,6 +102,17 @@ public class AiResponseServiceImpl implements AiResponseService{
         return getChatGptResponse(GPTRequest);
     }
 
+    public String extractGptResonse(String jsonResponse)
+    {
+        JsonElement jsonElement = JsonParser.parseString(jsonResponse);
+        JsonObject jsonObject = jsonElement.getAsJsonObject();
+
+        return jsonObject
+                .getAsJsonArray("choices").get(0)
+                .getAsJsonObject().getAsJsonObject("message")
+                .get("content").getAsString();
+    }
+
 
     public String getChatGptResponse(List<Map<String, String>> conversationHistory) {
         try {
@@ -108,7 +120,7 @@ public class AiResponseServiceImpl implements AiResponseService{
 
             // Set up the request headers
             Map<String, Object> data = new HashMap<>();
-            data.put("model", "gpt-3.5-turbo");
+            data.put("model", "gpt-3.5-turbo-0613");
             data.put("messages", conversationHistory);
             data.put("max_tokens", 100);
 
@@ -124,7 +136,7 @@ public class AiResponseServiceImpl implements AiResponseService{
 
             // Check if the request was successful
             if (response.statusCode() == 200) {
-                return response.body();
+                return extractGptResonse(response.body());
             } else {
                 System.err.println("Error: " + response.statusCode() + " - " + response.body());
                 return "Error in processing the request";
@@ -147,12 +159,9 @@ public class AiResponseServiceImpl implements AiResponseService{
         }
     }
 
-    private List<Map<String, String>> getConversationHistory(List<Message> previous_messages){
-        List<Map<String, String>> conversationHistory = new ArrayList<>();
-
-        Map<String, String> systemMessage = new HashMap<>();
-        systemMessage.put("role", "system");
-        systemMessage.put("content", "You are a simulation of a person with certaing characteristics that will be given to you. For the rest of this\n"
+    private String getSystemMessage(){
+        ///TODO: fa generarea de profil aci
+        return "You are a simulation of a person with certaing characteristics that will be given to you. For the rest of this\n"
                 + "conversation or untill you receive the message \"end of simulation\", you must act and hold a conversation as you are this person. \n"
                 + "You must take into consideration the positive and negative characteristics when responding. This person is beeing interviewed\n"
                 + "for a job. Messages you will receive will be from the interviewer, act according to the persons characteristics, as if it is\n"
@@ -186,8 +195,20 @@ public class AiResponseServiceImpl implements AiResponseService{
                 "I am known for my commitment to quality work, my ability to learn quickly, and my friendly and approachable demeanor. I am always eager to contribute to a positive team dynamic, bringing enthusiasm and a fresh perspective to the table.\n" +
                 "\n" +
                 "Areas for Improvement:\n" +
-                "While I am detail-oriented, I sometimes find myself spending too much time refining aspects that may not significantly impact the overall outcome. I am working on striking a balance between perfectionism and efficient task completion. Additionally, I am actively seeking opportunities to enhance my skills in frontend development to broaden my expertise in the field.\n" +
-                "Now the simulation begins. First message in your conversation is:");
+                "While I am detail-oriented, I sometimes find myself spending too much time refining aspects that may not significantly impact the overall outcome. I am working on striking a balance between perfectionism and efficient task completion. Additionally, I am actively seeking opportunities to enhance my skills in frontend development to broaden my expertise in the field.\n";
+    }
+
+    private List<Map<String, String>> getConversationHistory(Chat chat){
+        List<Map<String, String>> conversationHistory = new ArrayList<>();
+        var previous_messages = chat.getMessageList()
+                .stream()
+                .sorted(Comparator.comparingInt(Message::getCount))
+                .toList();
+
+        Map<String, String> systemMessage = new HashMap<>();
+        systemMessage.put("role", "system");
+        systemMessage.put("content", chat.getIdentity());
+
         conversationHistory.add(systemMessage);
 
         for(int i = 0; i < previous_messages.size(); i++){
@@ -205,7 +226,7 @@ public class AiResponseServiceImpl implements AiResponseService{
             else{
                 Map<String, String> assistantMessage = new HashMap<>();
                 assistantMessage.put("role", "assistant");
-                assistantMessage.put("content", previous_messages.get(i + 1).getMessage());
+                assistantMessage.put("content", previous_messages.get(i).getMessage());
                 conversationHistory.add(assistantMessage);
             }
         }
@@ -213,8 +234,8 @@ public class AiResponseServiceImpl implements AiResponseService{
         return conversationHistory;
     }
 
-    public String sendGptMessage(SendMessageRequest request){
-        var chat = chatRepository.findById(request.getChatId()).get();
+    public SendMessageResponse sendGptMessage(SendMessageRequest request){
+        var chat = getOrCreateChat(request.getChatId());
 
         ///TODO: sa apelez creearea de profil si sa o adaug ca prim mesaj in conversatie
 //        if(chat.getMessageList().isEmpty()) {
@@ -226,27 +247,29 @@ public class AiResponseServiceImpl implements AiResponseService{
 //            chat.getMessageList().add(initial_message);
 //        }
 
-        var message = Message.builder()
-                .message(request.getMessage())
-                .chat(chat)
-                .count(chat.getMessageList().size())
-                .build();
-        chat.getMessageList().add(message);
+        chat.insertMessage(request.getMessage());
 
-        var text = getConversationHistory(chat.getMessageList());
-        var response = getChatGptResponse(text);
-        var response_message = Message.builder()
-                .message(response)
-                .chat(chat)
-                .count(chat.getMessageList().size())
-                .build();
-        chat.getMessageList().add(response_message);
+        var text = getConversationHistory(chat);
+        var chatResponse = getChatGptResponse(text);
+        var chatResponseMessage = chat.insertMessage(chatResponse);
 
-        chatRepository.save(chat);
-        return response;
+        var savedEntity = chatRepository.save(chat);
+
+        return SendMessageResponse.builder()
+                .count(chatResponseMessage.getCount())
+                .message(chatResponseMessage.getMessage())
+                .chatId(savedEntity.getId())
+                .build();
     }
 
-    public Chat createChat(){
+    private Chat getOrCreateChat(int chatId){
+        if(chatId != -1) {
+            var chat = chatRepository.findById(chatId);
+            if(chat.isEmpty())
+                throw new RuntimeException("chat not found");
+            return chat.get();
+        }
+
         var email = SecurityContextHolder.getContext().getAuthentication().getName();
         var user = userRepository.findByEmail(email).get();
         var date = LocalDateTime.now();
@@ -255,7 +278,7 @@ public class AiResponseServiceImpl implements AiResponseService{
                 .date(date)
                 .messageList(new ArrayList<>())
                 .build();
-        chatRepository.save(chat);
+        chat.setIdentity(getSystemMessage());
         return chat;
     }
 }

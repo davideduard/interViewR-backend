@@ -17,8 +17,10 @@ public class Message {
     private int Id;
 
     @ManyToOne
+    @JoinColumn(name = "chat_id")
     private Chat chat;
 
+    @Column(columnDefinition = "VARCHAR(5000)")
     private String message;
 
     private int count;

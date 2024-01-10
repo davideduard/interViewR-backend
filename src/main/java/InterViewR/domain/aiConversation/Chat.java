@@ -25,6 +25,20 @@ public class Chat {
 
     private LocalDateTime date;
 
-    @OneToMany
+    @Column(columnDefinition = "VARCHAR(5000)")
+    private String identity;
+
+    @OneToMany(cascade = CascadeType.ALL, mappedBy = "chat", orphanRemoval = true)
     private List<Message> messageList;
+
+    public Message insertMessage(String text){
+        var message = Message.builder()
+                .message(text)
+                .chat(this)
+                .count(this.messageList.size())
+                .build();
+
+        this.messageList.add(message);
+        return message;
+    }
 }
