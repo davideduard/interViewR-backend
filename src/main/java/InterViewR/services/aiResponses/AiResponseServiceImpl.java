@@ -12,6 +12,7 @@ import com.nimbusds.jose.shaded.gson.JsonElement;
 import com.nimbusds.jose.shaded.gson.JsonObject;
 import com.nimbusds.jose.shaded.gson.JsonParser;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
@@ -26,7 +27,8 @@ import java.util.*;
 @RequiredArgsConstructor
 public class AiResponseServiceImpl implements AiResponseService{
     private static final String OPENAI_API_ENDPOINT = "https://api.openai.com/v1/chat/completions";
-    private static final String OPENAI_API_KEY = "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"; // Replace with your actual API key
+    @Value("${ai.key}")
+    private String OPENAI_API_KEY; // Replace with your actual API key
     private final ChatRepository chatRepository;
     private final UserRepository userRepository;
 
