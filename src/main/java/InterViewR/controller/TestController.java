@@ -17,6 +17,6 @@ public class TestController  {
 
     @PostMapping("/gpt")
     public ResponseEntity<String> gptResponse() {
-        return ResponseEntity.ok(aiResponseService.getGptResponse(new ArrayList<String>()));
+        return ResponseEntity.ok(aiResponseService.getGptGeneratedProfile(new ArrayList<String>()));
     }
 }

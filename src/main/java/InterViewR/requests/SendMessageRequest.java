@@ -11,5 +11,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class SendMessageRequest {
     private String message;
-    private int chatId;
+    @Builder.Default
+    private int chatId = -1;
 }

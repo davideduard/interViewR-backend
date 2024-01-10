@@ -1,16 +1,33 @@
 package InterViewR.services.aiResponses;
 
+import InterViewR.data.aiConversation.ChatRepository;
+import InterViewR.data.security.UserRepository;
+import InterViewR.domain.aiConversation.Chat;
+import InterViewR.domain.aiConversation.Message;
+import InterViewR.requests.SendMessageRequest;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+@Service
+@RequiredArgsConstructor
 public class AiResponseServiceImpl implements AiResponseService{
     private static final String OPENAI_API_ENDPOINT = "https://api.openai.com/v1/engines/davinci-codex/completions";
     private static final String OPENAI_API_KEY = "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"; // Replace with your actual API key
+    private final ChatRepository chatRepository;
+    private final UserRepository userRepository;
 
     public String getChatGptResponse(String message) {
         try {
@@ -55,7 +72,7 @@ public class AiResponseServiceImpl implements AiResponseService{
         return HttpRequest.BodyPublishers.ofString(builder.toString());
     }
 
-    private String getProfileRequest(List<String> keywords){
+    private String getProfilePrompt(List<String> keywords){
         StringBuilder profile = new StringBuilder("You are a person's profile based on keywords generator, "
                 + "for a job interview simulation.\nThe response format must have:\n"
                 + "Introduction: name, provenience, age, studies\nSocial Characteristics: 4 to 7\n"
@@ -79,8 +96,164 @@ public class AiResponseServiceImpl implements AiResponseService{
         return profile.toString();
     }
 
-    public String getGptResponse(List<String> keywords){
-        String GPTRequest = getProfileRequest(keywords);
+    public String getGptGeneratedProfile(List<String> keywords){
+        String GPTRequest = getProfilePrompt(keywords);
         return getChatGptResponse(GPTRequest);
+    }
+
+
+    public String getChatGptResponse(List<Map<String, String>> conversationHistory) {
+        try {
+            HttpClient httpClient = HttpClient.newHttpClient();
+
+            // Set up the request headers
+            Map<String, Object> data = new HashMap<>();
+            data.put("model", "gpt-3.5-turbo");
+            data.put("messages", conversationHistory);
+            data.put("max_tokens", 100);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(OPENAI_API_ENDPOINT))
+                    .header("Content-Type", "application/json")
+                    .header("Authorization", "Bearer " + OPENAI_API_KEY)
+                    .POST(buildJsonFromObject(data))
+                    .build();
+
+            // Send the request and get the response
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+            // Check if the request was successful
+            if (response.statusCode() == 200) {
+                return response.body();
+            } else {
+                System.err.println("Error: " + response.statusCode() + " - " + response.body());
+                return "Error in processing the request";
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "Error in processing the request";
+        }
+    }
+
+    private HttpRequest.BodyPublisher buildJsonFromObject(Object object) {
+        ObjectMapper objectMapper = new ObjectMapper();
+        try {
+            String json = objectMapper.writeValueAsString(object);
+            return HttpRequest.BodyPublishers.ofString(json);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+            return HttpRequest.BodyPublishers.noBody();
+        }
+    }
+
+    private List<Map<String, String>> getConversationHistory(List<Message> previous_messages){
+        List<Map<String, String>> conversationHistory = new ArrayList<>();
+
+        Map<String, String> systemMessage = new HashMap<>();
+        systemMessage.put("role", "system");
+        systemMessage.put("content", "You are a simulation of a person with certaing characteristics that will be given to you. For the rest of this\n"
+                + "conversation or untill you receive the message \"end of simulation\", you must act and hold a conversation as you are this person. \n"
+                + "You must take into consideration the positive and negative characteristics when responding. This person is beeing interviewed\n"
+                + "for a job. Messages you will receive will be from the interviewer, act according to the persons characteristics, as if it is\n"
+                + "beeing interviewed. You dont have to always respond in a long or elevated way. If the person is impatient or if it is young\n"
+                + "and inexperiened or maybe it has emotions this can affect the response. GIVE SIMPLE ANSWERS. If the message you receive is rude,\n"
+                + "respond accordingly, or in the same manner.\n"
+                + "This is the profile of the person you must simulate:" ///TODO: de aici se taie
+                + "Introduction:\n" +
+                "Hello, my name is Alex Thompson. I'm a 23-year-old student currently in my third year of computer science at the University of TechHub. Originally from the vibrant city of San Francisco, I've been deeply passionate about technology since a young age.\n" +
+                "\n" +
+                "Social Characteristics:\n" +
+                "\n" +
+                "Adaptable: Having lived in different cities, I quickly adapt to new environments and thrive in diverse settings.\n" +
+                "Collaborative: Enjoying group projects, I believe in the power of teamwork to achieve common goals efficiently.\n" +
+                "Analytical: A natural problem-solver, I approach challenges with a logical mindset, breaking them down into manageable parts.\n" +
+                "Effective Communicator: I understand the importance of clear communication in both technical and non-technical discussions.\n" +
+                "Curious: A continuous learner, I always seek to expand my knowledge in emerging technologies and industry trends.\n" +
+                "Detail-Oriented: In both coding and personal life, I pay meticulous attention to details to ensure quality outcomes.\n" +
+                "Initiative-taker: I actively seek opportunities for growth and improvement, demonstrating a proactive attitude.\n" +
+                "Skills and Capabilities:\n" +
+                "\n" +
+                "Backend Development: Proficient in backend technologies with hands-on experience gained during an internship at Evozon.\n" +
+                "Programming Languages: Solid understanding and practical usage of languages like Python, Java, and C++.\n" +
+                "Database Management: Skilled in designing and managing databases, ensuring efficient data storage and retrieval.\n" +
+                "Problem Solving: Possess strong analytical skills to identify and resolve complex technical issues.\n" +
+                "Version Control: Familiar with using Git for collaborative coding and version control.\n" +
+                "Background Information:\n" +
+                "I completed a rewarding internship at Evozon, where I focused on backend development. This experience allowed me to apply theoretical knowledge to real-world projects and work alongside experienced professionals. Additionally, I actively engage in coding competitions, contributing to open-source projects during my spare time.\n" +
+                "\n" +
+                "Positive Traits:\n" +
+                "I am known for my commitment to quality work, my ability to learn quickly, and my friendly and approachable demeanor. I am always eager to contribute to a positive team dynamic, bringing enthusiasm and a fresh perspective to the table.\n" +
+                "\n" +
+                "Areas for Improvement:\n" +
+                "While I am detail-oriented, I sometimes find myself spending too much time refining aspects that may not significantly impact the overall outcome. I am working on striking a balance between perfectionism and efficient task completion. Additionally, I am actively seeking opportunities to enhance my skills in frontend development to broaden my expertise in the field.\n" +
+                "Now the simulation begins. First message in your conversation is:");
+        conversationHistory.add(systemMessage);
+
+        for(int i = 0; i < previous_messages.size(); i++){
+            ///TODO: after profile from above is cut, take into consideration that on position 0 is the profile and
+            ///TODO: the parity reverses
+//            if(i == 0){
+//                continue;///TODO: add profile
+//            }
+            if(i % 2 == 0){
+                Map<String, String> userMessage = new HashMap<>();
+                userMessage.put("role", "user");
+                userMessage.put("content", previous_messages.get(i).getMessage());
+                conversationHistory.add(userMessage);
+            }
+            else{
+                Map<String, String> assistantMessage = new HashMap<>();
+                assistantMessage.put("role", "assistant");
+                assistantMessage.put("content", previous_messages.get(i + 1).getMessage());
+                conversationHistory.add(assistantMessage);
+            }
+        }
+
+        return conversationHistory;
+    }
+
+    public String sendGptMessage(SendMessageRequest request){
+        var chat = chatRepository.findById(request.getChatId()).get();
+
+        ///TODO: sa apelez creearea de profil si sa o adaug ca prim mesaj in conversatie
+//        if(chat.getMessageList().isEmpty()) {
+//            var initial_message = Message.builder()
+//                    .message()
+//                    .chat(chat)
+//                    .count(chat.getMessageList().size())
+//                    .build();
+//            chat.getMessageList().add(initial_message);
+//        }
+
+        var message = Message.builder()
+                .message(request.getMessage())
+                .chat(chat)
+                .count(chat.getMessageList().size())
+                .build();
+        chat.getMessageList().add(message);
+
+        var text = getConversationHistory(chat.getMessageList());
+        var response = getChatGptResponse(text);
+        var response_message = Message.builder()
+                .message(response)
+                .chat(chat)
+                .count(chat.getMessageList().size())
+                .build();
+        chat.getMessageList().add(response_message);
+
+        chatRepository.save(chat);
+        return response;
+    }
+
+    public Chat createChat(){
+        var email = SecurityContextHolder.getContext().getAuthentication().getName();
+        var user = userRepository.findByEmail(email).get();
+        var date = LocalDateTime.now();
+        return Chat.builder()
+                .user(user)
+                .date(date)
+                .messageList(new ArrayList<>())
+                .build();
     }
 }
