@@ -250,10 +250,12 @@ public class AiResponseServiceImpl implements AiResponseService{
         var email = SecurityContextHolder.getContext().getAuthentication().getName();
         var user = userRepository.findByEmail(email).get();
         var date = LocalDateTime.now();
-        return Chat.builder()
+        var chat = Chat.builder()
                 .user(user)
                 .date(date)
                 .messageList(new ArrayList<>())
                 .build();
+        chatRepository.save(chat);
+        return chat;
     }
 }
