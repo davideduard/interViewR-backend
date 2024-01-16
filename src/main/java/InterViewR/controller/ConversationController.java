@@ -11,9 +11,11 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/chat")
 @RequiredArgsConstructor
+@CrossOrigin
 public class ConversationController {
     private final AiResponseService aiResponseService;
     @PostMapping("/gptmessage")
+    @CrossOrigin
     private ResponseEntity<SendMessageResponse> sendMessage(@RequestBody SendMessageRequest request) {
         return ResponseEntity.ok(aiResponseService.sendGptMessage(request));
     }
