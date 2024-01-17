@@ -252,28 +252,14 @@ public class AiResponseServiceImpl implements AiResponseService{
     }
 
     public EndMessageResponse sendFinalGptMessage(EndChatRequest request) {
-        String messageToSend = "I will give you two sets of keywords. The first one is called the Correct keywords and contains a list of keywords \n" +
-                "The second one is called the Guessed keywords and is also a list of keywords. You must check which of the keywords in the Guessed keywords are related to the ones found in the Correct keywords \n" +
-                "Please also give me a percentage of how many keywords in the first message are found in the second one";
-        messageToSend += "The Correct keywords is: " + "Adaptable, Collaborative, Analytical, Effective Communicator, Curious, Detail-Oriented, Initiative-taker, " +
-                "Backend Development knowledge, Programming Languages Understanding, Database Management knowledge, Problem Solving capabilities";
-        messageToSend += "The Guessed keywords is: " + request.getMessage();
-        messageToSend += "Please return the response in this format (replace the dots with the correct information, also the keywords are separated by a comma): " +
-                "Correct number of keywords ... and correct number of guessed keywords ... \n" +
-                "Divide the number of guessed keywords with the Correct number of keywords and give me the percentage";
+        String messageToSend = "Based on our conversation estimate the number of given attributes that were brought up. Please give me a list of those attributes follow by a percentage of found attributes.";
 
         var chat = getChat(request.getChatId());
 
         chat.insertMessage(messageToSend);
 
-        List<Map<String, String>> formattedMessage = new ArrayList<>();
-
-        Map<String, String> systemMessage = new HashMap<>();
-        systemMessage.put("role", "user");
-        systemMessage.put("content", messageToSend);
-        formattedMessage.add(systemMessage);
-
-        var chatResponse = getChatGptResponse(formattedMessage);
+        var text = getConversationHistory(chat);
+        var chatResponse = getChatGptResponse(text);
 
         return EndMessageResponse.builder().message(chatResponse).build();
     }

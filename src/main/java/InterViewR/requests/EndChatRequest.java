@@ -12,7 +12,5 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class EndChatRequest {
-    private String message;
-
     private int chatId;
 }
