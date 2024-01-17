@@ -4,6 +4,7 @@ import InterViewR.data.aiConversation.ChatRepository;
 import InterViewR.data.security.UserRepository;
 import InterViewR.domain.aiConversation.Chat;
 import InterViewR.domain.aiConversation.Message;
+import InterViewR.requests.EndChatRequest;
 import InterViewR.requests.SendMessageRequest;
 import InterViewR.responses.SendMessageResponse;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -114,7 +115,7 @@ public class AiResponseServiceImpl implements AiResponseService{
     }
 
 
-    public String getChatGptResponse(List<Map<String, String>> conversationHistory) {
+    public String getChatGptResponse(Object conversationHistory) {
         try {
             HttpClient httpClient = HttpClient.newHttpClient();
 
@@ -124,11 +125,13 @@ public class AiResponseServiceImpl implements AiResponseService{
             data.put("messages", conversationHistory);
             data.put("max_tokens", 100);
 
+            var json = buildJsonFromObject(data);
+
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(OPENAI_API_ENDPOINT))
                     .header("Content-Type", "application/json")
                     .header("Authorization", "Bearer " + OPENAI_API_KEY)
-                    .POST(buildJsonFromObject(data))
+                    .POST(json)
                     .build();
 
             // Send the request and get the response
@@ -159,8 +162,12 @@ public class AiResponseServiceImpl implements AiResponseService{
         }
     }
 
+    private List<String> getKeywordsList() {
+        return List.of("Adaptable", "Collaborative", "Analytical", "Effective Communicator", "Curious", "Detail-Oriented", "Initiative-taker",
+                "Backend Development", "Programming Languages", "Database Management", "Problem Solving", "Version Control");
+    }
+
     private String getSystemMessage(){
-        ///TODO: fa generarea de profil aci
         return "You are a simulation of a person with certaing characteristics that will be given to you. For the rest of this\n"
                 + "conversation or untill you receive the message \"end of simulation\", you must act and hold a conversation as you are this person. \n"
                 + "You must take into consideration the positive and negative characteristics when responding. This person is beeing interviewed\n"
@@ -168,7 +175,7 @@ public class AiResponseServiceImpl implements AiResponseService{
                 + "beeing interviewed. You dont have to always respond in a long or elevated way. If the person is impatient or if it is young\n"
                 + "and inexperiened or maybe it has emotions this can affect the response. GIVE SIMPLE ANSWERS. If the message you receive is rude,\n"
                 + "respond accordingly, or in the same manner.\n"
-                + "This is the profile of the person you must simulate:" ///TODO: de aici se taie
+                + "This is the profile of the person you must simulate:"
                 + "Introduction:\n" +
                 "Hello, my name is Alex Thompson. I'm a 23-year-old student currently in my third year of computer science at the University of TechHub. Originally from the vibrant city of San Francisco, I've been deeply passionate about technology since a young age.\n" +
                 "\n" +
@@ -187,7 +194,6 @@ public class AiResponseServiceImpl implements AiResponseService{
                 "Programming Languages: Solid understanding and practical usage of languages like Python, Java, and C++.\n" +
                 "Database Management: Skilled in designing and managing databases, ensuring efficient data storage and retrieval.\n" +
                 "Problem Solving: Possess strong analytical skills to identify and resolve complex technical issues.\n" +
-                "Version Control: Familiar with using Git for collaborative coding and version control.\n" +
                 "Background Information:\n" +
                 "I completed a rewarding internship at Evozon, where I focused on backend development. This experience allowed me to apply theoretical knowledge to real-world projects and work alongside experienced professionals. Additionally, I actively engage in coding competitions, contributing to open-source projects during my spare time.\n" +
                 "\n" +
@@ -234,6 +240,45 @@ public class AiResponseServiceImpl implements AiResponseService{
         return conversationHistory;
     }
 
+    ///TODO: Facem o functie care primeste un call dupa 15 mn de interviu.
+    ///TODO: Input: list of keywords
+    ///TODO: Ce face? face un call la chat gpt cu profilul si cu lista de keywords si imi spune cuvintele gasite si un procentaj.
+    private Chat getChat(int chatId) {
+        var chat = chatRepository.findById(chatId);
+        if(chat.isEmpty())
+            throw new RuntimeException("chat not found");
+        return chat.get();
+    }
+
+    public String sendFinalGptMessage(EndChatRequest request) {
+        String messageToSend = "I will give you two sets of keywords. The first one is called the Correct keywords and contains a list of keywords \n" +
+                "The second one is called the Guessed keywords and is also a list of keywords. You must check which of the keywords in the Guessed keywords are related to the ones found in the Correct keywords \n" +
+                "Please also give me a percentage of how many keywords in the first message are found in the second one";
+        messageToSend += "The Correct keywords is: " + "Adaptable, Collaborative, Analytical, Effective Communicator, Curious, Detail-Oriented, Initiative-taker, " +
+                "Backend Development knowledge, Programming Languages Understanding, Database Management knowledge, Problem Solving capabilities";
+        messageToSend += "The Guessed keywords is: " + request.getMessage();
+        messageToSend += "Please return the response in this format (replace the dots with the correct information, also the keywords are separated by a comma): " +
+                "Correct number of keywords ... and correct number of guessed keywords ... \n" +
+                "Divide the number of guessed keywords with the Correct number of keywords and give me the percentage";
+
+        var chat = getChat(request.getChatId());
+
+        chat.insertMessage(messageToSend);
+
+        List<Map<String, String>> formattedMessage = new ArrayList<>();
+
+        Map<String, String> systemMessage = new HashMap<>();
+        systemMessage.put("role", "user");
+        systemMessage.put("content", messageToSend);
+        formattedMessage.add(systemMessage);
+
+        var chatResponse = getChatGptResponse(formattedMessage);
+
+        return chatResponse;
+    }
+
+
+
     public SendMessageResponse sendGptMessage(SendMessageRequest request){
         var chat = getOrCreateChat(request.getChatId());
 
@@ -279,6 +324,7 @@ public class AiResponseServiceImpl implements AiResponseService{
                 .messageList(new ArrayList<>())
                 .build();
         chat.setIdentity(getSystemMessage());
+        chat.setKeywords(getKeywordsList());
         return chat;
     }
 }

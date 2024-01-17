@@ -23,6 +23,9 @@ public class Chat {
     @ManyToOne
     private User user;
 
+    @ElementCollection
+    private List<String> keywords;
+
     private LocalDateTime date;
 
     @Column(columnDefinition = "VARCHAR(5000)")
