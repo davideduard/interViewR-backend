@@ -6,6 +6,7 @@ import InterViewR.domain.aiConversation.Chat;
 import InterViewR.domain.aiConversation.Message;
 import InterViewR.requests.EndChatRequest;
 import InterViewR.requests.SendMessageRequest;
+import InterViewR.responses.EndMessageResponse;
 import InterViewR.responses.SendMessageResponse;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -250,7 +251,7 @@ public class AiResponseServiceImpl implements AiResponseService{
         return chat.get();
     }
 
-    public String sendFinalGptMessage(EndChatRequest request) {
+    public EndMessageResponse sendFinalGptMessage(EndChatRequest request) {
         String messageToSend = "I will give you two sets of keywords. The first one is called the Correct keywords and contains a list of keywords \n" +
                 "The second one is called the Guessed keywords and is also a list of keywords. You must check which of the keywords in the Guessed keywords are related to the ones found in the Correct keywords \n" +
                 "Please also give me a percentage of how many keywords in the first message are found in the second one";
@@ -274,7 +275,7 @@ public class AiResponseServiceImpl implements AiResponseService{
 
         var chatResponse = getChatGptResponse(formattedMessage);
 
-        return chatResponse;
+        return EndMessageResponse.builder().message(chatResponse).build();
     }
 
 

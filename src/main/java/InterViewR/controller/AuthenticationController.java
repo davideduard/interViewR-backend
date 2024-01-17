@@ -4,20 +4,19 @@ import InterViewR.requests.EndChatRequest;
 import InterViewR.requests.SendMessageRequest;
 import InterViewR.requests.SignInRequest;
 import InterViewR.requests.SignUpRequest;
+import InterViewR.responses.EndMessageResponse;
 import InterViewR.responses.JwtAuthenticationResponse;
 import InterViewR.responses.SendMessageResponse;
 import InterViewR.security.AuthenticationService;
 import InterViewR.services.aiResponses.AiResponseService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
+@CrossOrigin
 public class AuthenticationController {
     private final AuthenticationService authenticationService;
 
@@ -29,7 +28,7 @@ public class AuthenticationController {
     }
 
     @PostMapping("/endmessage")
-    private ResponseEntity<String> endMessage(@RequestBody EndChatRequest request) {
+    private ResponseEntity<EndMessageResponse> endMessage(@RequestBody EndChatRequest request) {
         return ResponseEntity.ok(aiResponseService.sendFinalGptMessage(request));
     }
 

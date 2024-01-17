@@ -1,9 +1,8 @@
 package InterViewR.services.aiResponses;
 
-import InterViewR.domain.aiConversation.Chat;
-import InterViewR.domain.aiConversation.Message;
 import InterViewR.requests.EndChatRequest;
 import InterViewR.requests.SendMessageRequest;
+import InterViewR.responses.EndMessageResponse;
 import InterViewR.responses.SendMessageResponse;
 import org.springframework.stereotype.Service;
 
@@ -14,5 +13,5 @@ public interface AiResponseService {
     String getGptGeneratedProfile(List<String> keywords);
 
     SendMessageResponse sendGptMessage(SendMessageRequest request);
-    String sendFinalGptMessage(EndChatRequest request);
+    EndMessageResponse sendFinalGptMessage(EndChatRequest request);
 }
