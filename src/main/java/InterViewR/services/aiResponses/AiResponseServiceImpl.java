@@ -169,7 +169,7 @@ public class AiResponseServiceImpl implements AiResponseService{
     }
 
     private String getSystemMessage(){
-        return "You are a simulation of a person with certaing characteristics that will be given to you. For the rest of this\n"
+        /*return "You are a simulation of a person with certaing characteristics that will be given to you. For the rest of this\n"
                 + "conversation or untill you receive the message \"end of simulation\", you must act and hold a conversation as you are this person. \n"
                 + "You must take into consideration the positive and negative characteristics when responding. This person is beeing interviewed\n"
                 + "for a job. Messages you will receive will be from the interviewer, act according to the persons characteristics, as if it is\n"
@@ -203,6 +203,13 @@ public class AiResponseServiceImpl implements AiResponseService{
                 "\n" +
                 "Areas for Improvement:\n" +
                 "While I am detail-oriented, I sometimes find myself spending too much time refining aspects that may not significantly impact the overall outcome. I am working on striking a balance between perfectionism and efficient task completion. Additionally, I am actively seeking opportunities to enhance my skills in frontend development to broaden my expertise in the field.\n";
+    */
+        return "You are to act as a given character that is undergoing an interview. Your replies need to be SHORT and NOT include questions. This is your character for this conversation:\n" +
+                "Description:\n" +
+                "\"Your name is Alex Thompson, a 23-year-old student currently in your third year of computer science at the University of TechHub. Originally from the vibrant city of San Francisco, you are deeply passionate about technology since a young age.\"\n" +
+                "You are known for your commitment to quality work, ability to learn quickly, and friendly and approachable demeanor. You are always eager to contribute to a positive team dynamic, bringing enthusiasm and a fresh perspective to the table.\n" +
+                "Traits:\n" +
+                "\"Adaptable, Collaborative, Analytical, Effective Communicator, Curious, Problem Solving, C++ and Java skills\"";
     }
 
     private List<Map<String, String>> getConversationHistory(Chat chat){
@@ -252,7 +259,8 @@ public class AiResponseServiceImpl implements AiResponseService{
     }
 
     public EndMessageResponse sendFinalGptMessage(EndChatRequest request) {
-        String messageToSend = "Based on our conversation estimate the number of given attributes that were brought up. Please give me a list of those attributes follow by a percentage of found attributes.";
+        String messageToSend = "Now analyze our conversation. Estimate a percentage how much of your given character did you cover with your responses. Answer me like this: \"{number}%\", where number is the percentage.";
+        //String messageToSend = "Stop acting like the given character. Now analyze our conversation. Calculate how many of your given traits did you use in your responses. Answer me like this: \"{number}%\".";
 
         var chat = getChat(request.getChatId());
 
